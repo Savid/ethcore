@@ -19,6 +19,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type WrappedPooledTransactions struct {
+	Hashes  *PooledTransactions
+	Elapsed time.Duration
+	Bytes   int
+}
+
 type Client struct {
 	log logrus.FieldLogger
 
@@ -35,7 +41,7 @@ type Client struct {
 	conn     net.Conn
 	rlpxConn *rlpx.Conn
 
-	pooledTransactionsMap map[uint64]chan *PooledTransactions
+	pooledTransactionsMap map[uint64]chan *WrappedPooledTransactions
 	pooledTransactionsMux sync.Mutex
 
 	ethCapVersion uint
@@ -60,7 +66,7 @@ func New(ctx context.Context, log logrus.FieldLogger, record, name string) (*Cli
 		nodeRecord:            nodeRecord,
 		name:                  name,
 		broker:                emission.NewEmitter(),
-		pooledTransactionsMap: map[uint64]chan *PooledTransactions{},
+		pooledTransactionsMap: map[uint64]chan *WrappedPooledTransactions{},
 	}, nil
 }
 
@@ -169,7 +175,7 @@ func (c *Client) startSession(ctx context.Context) {
 			return
 		}
 
-		code, data, _, err := c.rlpxConn.Read()
+		code, data, _, elapsed, bytes, err := c.rlpxConn.Read()
 		if err != nil {
 			c.handleSessionError(ctx, fmt.Errorf("error reading rlpx connection: %w", err))
 
@@ -230,7 +236,7 @@ func (c *Client) startSession(ctx context.Context) {
 				return
 			}
 		case PooledTransactionsCode:
-			if err := c.handlePooledTransactions(ctx, code, data); err != nil {
+			if err := c.handlePooledTransactions(ctx, code, data, elapsed, bytes); err != nil {
 				c.handleSessionError(ctx, err)
 
 				return

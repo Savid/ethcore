@@ -42,12 +42,12 @@ func (c *Client) sendGetPooledTransactions(ctx context.Context, pt *GetPooledTra
 	return nil
 }
 
-func (c *Client) GetPooledTransactions(ctx context.Context, hashes []common.Hash) (*PooledTransactions, error) {
+func (c *Client) GetPooledTransactions(ctx context.Context, hashes []common.Hash) (*WrappedPooledTransactions, error) {
 	//nolint:gosec // not a security issue
 	requestID := uint64(rand.Uint32())<<32 + uint64(rand.Uint32())
 
 	c.pooledTransactionsMux.Lock()
-	c.pooledTransactionsMap[requestID] = make(chan *PooledTransactions)
+	c.pooledTransactionsMap[requestID] = make(chan *WrappedPooledTransactions)
 	c.pooledTransactionsMux.Unlock()
 
 	defer func() {

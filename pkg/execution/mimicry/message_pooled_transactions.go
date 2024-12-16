@@ -4,6 +4,7 @@ package mimicry
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -28,7 +29,7 @@ func (c *Client) receivePooledTransactions(ctx context.Context, data []byte) (*P
 	return s, nil
 }
 
-func (c *Client) handlePooledTransactions(ctx context.Context, code uint64, data []byte) error {
+func (c *Client) handlePooledTransactions(ctx context.Context, code uint64, data []byte, elapsed time.Duration, bytes int) error {
 	c.log.WithField("code", code).Debug("received PooledTransactions")
 
 	txs, err := c.receivePooledTransactions(ctx, data)
@@ -41,7 +42,11 @@ func (c *Client) handlePooledTransactions(ctx context.Context, code uint64, data
 
 	channel, exists := c.pooledTransactionsMap[txs.ReqID()]
 	if exists && channel != nil {
-		channel <- txs
+		channel <- &WrappedPooledTransactions{
+			Hashes:  txs,
+			Elapsed: elapsed,
+			Bytes:   bytes,
+		}
 	}
 
 	return nil
